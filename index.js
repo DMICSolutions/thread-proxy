@@ -2,18 +2,21 @@ import express from "express";
 import fetch from "node-fetch";
 
 const app = express();
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "1mb" }));
 
-// restrict access with a shared secret, optional but smart
-const SECRET = process.env.PROXY_SECRET;
+const SECRET = process.env.PROXY_SECRET || "change_me";
 
-app.all("*", async (req, res) => {
+// only handle routes that start with /proxy
+app.all("/proxy/*", async (req, res) => {
   if (req.headers["x-proxy-secret"] !== SECRET) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const targetUrl = "https://" + process.env.PROXY_HOST + req.originalUrl;
+    // remove "/proxy" from the start of the path before forwarding
+    const targetPath = req.originalUrl.replace(/^\/proxy/, "");
+    const targetUrl = "https://" + process.env.PROXY_HOST + targetPath;
+
     const response = await fetch(targetUrl, {
       method: req.method,
       headers: { ...req.headers, host: process.env.PROXY_HOST },
@@ -29,4 +32,4 @@ app.all("*", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Proxy listening on port ${PORT}`));
