@@ -19,7 +19,7 @@ app.all("/proxy/*", async (req, res) => {
 
     const response = await fetch(targetUrl, {
       method: req.method,
-      headers: { ...req.headers, host: process.env.PROXY_HOST },
+      headers: { ...req.headers, host: process.env.PROXY_HOST, "accept-encoding": "identity" },
       body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body),
     });
 
