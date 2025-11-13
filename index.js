@@ -15,9 +15,7 @@ const ALLOWED_IPS = (process.env.ALLOWED_IPS || "")
 
 // Middleware: block everything except allowed IPs
 app.use((req, res, next) => {
-    // Express behind reverse proxies? uncomment next line if needed:
-    // app.set('trust proxy', true);
-    const remoteIP = req.ip.replace("::ffff:", ""); // normalize IPv4-in-IPv6
+    const remoteIP = req.ip.replace("::ffff:", "");
     if (ALLOWED_IPS.length && !ALLOWED_IPS.includes(remoteIP)) {
         console.warn(`Blocked request from ${remoteIP}`);
         return res.status(403).send("Forbidden (unauthorized IP)");
@@ -32,9 +30,16 @@ app.all("/proxy/*", async (req, res) => {
     }
 
     try {
-        // remove "/proxy" from the start of the path before forwarding
+        // strip "/proxy"
         const targetPath = req.originalUrl.replace(/^\/proxy/, "");
-        const targetUrl = "https://" + process.env.PROXY_HOST + targetPath;
+
+        // choose host based on method
+        const upstreamHost =
+            req.method === "GET"
+                ? "login.microsoftonline.com"
+                : process.env.PROXY_HOST;
+
+        const targetUrl = "https://" + upstreamHost + targetPath;
         const urlObj = new URL(targetUrl);
 
         const rawHeaders = {
@@ -43,7 +48,6 @@ app.all("/proxy/*", async (req, res) => {
             "accept-encoding": "identity"
         };
 
-        // strip nonsense for GET/HEAD
         if (["GET", "HEAD"].includes(req.method)) {
             delete rawHeaders["content-length"];
             delete rawHeaders["content-type"];
@@ -53,7 +57,10 @@ app.all("/proxy/*", async (req, res) => {
         const response = await fetch(targetUrl, {
             method: req.method,
             headers: rawHeaders,
-            body: ["GET", "HEAD"].includes(req.method) ? undefined : JSON.stringify(req.body)
+            body:
+                ["GET", "HEAD"].includes(req.method)
+                    ? undefined
+                    : JSON.stringify(req.body)
         });
 
         res.status(response.status);
@@ -67,5 +74,8 @@ app.all("/proxy/*", async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
-    console.log(`Proxy listening on port ${PORT}, allowed IPs: ${ALLOWED_IPS.join(", ") || "none"}`)
+    console.log(
+        `Proxy listening on port ${PORT}, allowed IPs: ${ALLOWED_IPS.join(", ") || "none"
+        }`
+    )
 );
