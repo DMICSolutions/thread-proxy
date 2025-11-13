@@ -33,11 +33,15 @@ app.all("/proxy/*", async (req, res) => {
         // strip "/proxy"
         const targetPath = req.originalUrl.replace(/^\/proxy/, "");
 
-        // choose host based on method
-        const upstreamHost =
-            req.method === "GET"
-                ? "login.microsoftonline.com"
-                : process.env.PROXY_HOST;
+        // detect MS OAuth endpoints
+        const isMicrosoftAuth =
+            targetPath.startsWith("/common/oauth2") ||
+            targetPath.includes("/oauth2/v2.0/");
+
+        // choose host based on path
+        const upstreamHost = isMicrosoftAuth
+            ? "login.microsoftonline.com"
+            : process.env.PROXY_HOST;
 
         const targetUrl = "https://" + upstreamHost + targetPath;
         const urlObj = new URL(targetUrl);
@@ -54,7 +58,7 @@ app.all("/proxy/*", async (req, res) => {
             delete rawHeaders["transfer-encoding"];
         }
 
-        console.log("Forwarding to:", targetUrl);
+        console.warn("Forwarding to:", targetUrl);
 
         const response = await fetch(targetUrl, {
             method: req.method,
