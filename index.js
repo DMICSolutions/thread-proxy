@@ -18,7 +18,7 @@ app.use((req, res, next) => {
     const remoteIP = req.ip.replace("::ffff:", "");
     if (ALLOWED_IPS.length && !ALLOWED_IPS.includes(remoteIP)) {
         console.warn(`Blocked request from ${remoteIP}`);
-        return res.status(403).send("Forbidden (unauthorized IP)");
+        return res.status(403).send("Forbidden");
     }
     next();
 });
@@ -53,6 +53,8 @@ app.all("/proxy/*", async (req, res) => {
             delete rawHeaders["content-type"];
             delete rawHeaders["transfer-encoding"];
         }
+
+        console.log("Forwarding to:", targetUrl);
 
         const response = await fetch(targetUrl, {
             method: req.method,
